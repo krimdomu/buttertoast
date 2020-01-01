@@ -1,0 +1,39 @@
+defaults
+  log 127.0.0.1 local0
+  option tcplog
+  timeout connect 5s
+  timeout client  2h
+  timeout server  2h
+
+# stats socket /tmp/haproxy.sock mode 600 expose-fd listeners level user
+
+# listen stats 127.0.0.100:8080
+#     mode http
+#     log global
+#     stats enable
+#     stats realm Haproxy\ Statistics
+#     stats uri /haproxy_stats
+#     stats hide-version
+#     stats auth admin:admin@rserve
+
+% for my $service (keys %{ $services }) {
+frontend <%= $service %>_frontend
+    bind *:<%= $services->{$service}->{public_port} %>
+    mode tcp
+    option tcplog
+    timeout client  1m
+    default_backend <%= $service %>_backend
+
+backend <%= $service %>_backend
+    mode tcp
+    option redispatch
+    log global
+    balance roundrobin
+    timeout connect 10s
+    timeout server 1m
+    % my $i = 0;
+    % for my $backend ( @{ $services->{$service}->{backends} } ) {
+    % $i += 1;
+    server b_<%= $service %>_<%= $i %> <%= $backend->{ip} %>:<%= $backend->{port} %>
+    % }
+% }
