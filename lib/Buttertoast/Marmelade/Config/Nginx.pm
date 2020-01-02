@@ -6,9 +6,9 @@ package Buttertoast::Marmelade::Config::Nginx;
 
 use Moose;
 
-has config_file => (
+has config_path => (
     is => 'rw',
-    default => sub { "/tmp/nginx.conf" },
+    default => sub { "/tmp/" },
 );
 
 1;

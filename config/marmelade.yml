@@ -1,0 +1,11 @@
+redis:
+  host: localhost
+  port: 6379
+
+id: 25549755-8bae-42d5-ab2f-0ef7fdff84aa
+
+driver: Nginx
+
+nginx:
+    config_path: /tmp
+

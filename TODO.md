@@ -5,5 +5,7 @@
 * Encrypt redis data
 * build ingress container
 * a configuration file
+* api server
+* config classes refactor
 * and many more
 

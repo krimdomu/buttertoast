@@ -13,7 +13,7 @@ Buttertoast is in very early development stage. Not even pre alpha. This repo ho
 
 ## Questions
 
-If you have questions or want to help feel free to join the buttertoast matrix channel (https://matrix.to/#/!PiRVVIdkswNXyVKaNy:matrix.org?via=matrix.org).
+If you have questions or want to help feel free to join the butter matrix channel (https://matrix.to/#/!PiRVVIdkswNXyVKaNy:matrix.org?via=matrix.org).
 
 ## Dependencies
 
@@ -26,9 +26,9 @@ Right now Buttertoast only needs an up-to-date perl 5 installation, a redis serv
 
 ## Architecture
 
-Currently there are 2 services. *Buttertoast* and *Marmelade*. To create a Buttertoast cluster you have to install the following services on a node.
+Currently there are 2 services. *Butter* and *Marmelade*. To create a Buttertoast cluster you have to install the following services on a node.
 
-* Buttertoast
+* Buttertoast (The Butter service)
 * Redis
 * HAProxy
 
@@ -40,9 +40,9 @@ Buttertoast use Redis to store internal runtime data and use the publish/subscri
 
 On every host runs a HAProxy which is configured by Buttertoast. The HAProxy replaces the docker proxy. It makes the containers available to other hosts in the network. It is used only in *TCP proxy* mode.
 
-### Buttertoast
+### Butter
 
-Buttertoast is the scheduler itself. It manages the lifecycle of a container. (Start, Stop, ...). 
+Butter is the scheduler itself. It manages the lifecycle of a container. (Start, Stop, ...). 
 
 
 ### Marmelade

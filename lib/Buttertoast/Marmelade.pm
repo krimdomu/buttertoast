@@ -6,6 +6,7 @@ package Buttertoast::Marmelade;
 
 use Moose;
 use Redis;
+use Proc::Fork;
 use JSON::XS;
 use UUID::Tiny ':std';
 
@@ -14,20 +15,33 @@ use Data::Dumper;
 use Buttertoast::Marmelade::Config;
 use Buttertoast::Marmelade::Command::Start;
 use Buttertoast::Marmelade::Command::Die;
+use Buttertoast::Marmelade::Driver::Nginx;
 
 has redis_rw => (
     is => 'rw',
-    default => sub { Redis->new; }
+    lazy => 1,
+    default => sub {
+        my $self = shift;
+        Redis->new(server => $self->config->redis->host  . ":" . $self->config->redis->port);
+    }
 );
 
 has redis_sub => (
     is => 'rw',
-    default => sub { Redis->new; }
+    lazy => 1,
+    default => sub {
+        my $self = shift;
+        Redis->new(server => $self->config->redis->host  . ":" . $self->config->redis->port);
+    }
 );
 
 has redis_pub => (
     is => 'rw',
-    default => sub { Redis->new; }
+    lazy => 1,
+    default => sub {
+        my $self = shift;
+        Redis->new(server => $self->config->redis->host  . ":" . $self->config->redis->port);
+    }
 );
 
 has config => (
@@ -37,7 +51,21 @@ has config => (
 
 has marmelade_id => (
     is => 'rw',
-    default => sub { "4905801a-1bc1-441c-a6c9-23dead4d8c8c" },
+    lazy => 1,
+    default => sub {
+        my $self = shift;
+        return $self->config->id;
+    },
+);
+
+has ingress => (
+    is => 'rw',
+    lazy => 1,
+    default => sub {
+        my $self = shift; 
+        my $driver_class = "Buttertoast::Marmelade::Driver::" . $self->config->driver;
+        return $driver_class->new(marmelade => $self);
+    },
 );
 
 sub get_file {
@@ -70,20 +98,6 @@ sub dispatch_event_command {
     my $self = shift;
     my $event = shift;
 
-# $VAR1 = {                                    
-#           'payload' => {                     
-#                          'public' => '1',    
-#                          'application_port' => '80',                                      
-#                          'inbound_ip' => '172.20.10.4',                                   
-#                          'container_id' => 'd8e23fdfcaf9ccadb4ca205452a5ddf9815d2238096728fec5d1d495ab168489',                                                                       
-#                          'public_port' => '8888',                                         
-#                          'container_ip' => '172.17.0.4'                                   
-#                        },
-#           'type' => 'START'
-#         };
-
-    print Dumper $event;
-
     eval {
         my $command_class = "Buttertoast::Marmelade::Command::" . ucfirst(lc($event->{type}));
         my $command = $command_class->new(marmelade => $self);
@@ -96,6 +110,8 @@ sub dispatch_event_command {
 
 sub start {
     my $self = shift;
+
+    $self->ingress->start;
 
     $self->handle_signals;
 

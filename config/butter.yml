@@ -1,0 +1,11 @@
+docker:
+  socket_path: /var/run/docker.sock
+
+haproxy:
+  config_file: /tmp/haproxy.conf
+
+id: e272412e-e780-4505-8347-79d25e7b1166
+
+placement: Simple
+
+inbound_ip: 192.168.1.102
