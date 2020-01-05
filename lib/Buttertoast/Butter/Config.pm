@@ -58,10 +58,32 @@ has config_ref => (
     default => sub {{}}
 );
 
+has placement => (
+    is => 'rw',
+    lazy => 1,
+    default => sub {
+        my $self = shift;
+        return $self->config_ref->{placement} // "Simple";
+    },
+);
+
+has inbound_ip => (
+    is => 'rw',
+    lazy => 1,
+    default => sub {
+        my $self = shift;
+        return $self->config_ref->{inbound_ip};
+    },
+);
+
 sub BUILD {
     my $self = shift;
 
-    if(-f "config/butter.yml") {
+    if(-f "/etc/buttertoast/butter.yml") {
+        my $ref = YAML::LoadFile("/etc/buttertoast/butter.yml");
+        $self->_config_ref($ref);
+    }
+    elsif(-f "config/butter.yml") {
         my $ref = YAML::LoadFile("config/butter.yml");
         $self->_config_ref($ref);
     }

@@ -5,16 +5,20 @@
 package Buttertoast::Butter::Placement::Simple;
 
 use Moose;
+use Data::Dumper;
 
 extends qw/Buttertoast::Butter::Placement/;
 
 sub calculate {
     my $self = shift;
+    print "[|]\tinspecting placements\n";
 
     my @keys = $self->butter->redis_rw->keys('metric:*:memory');
+
+    print Dumper \@keys;
+    
     my @all_data = ();
 
-    print "[+] inspecting placements\n";
     for my $k (@keys) {
         my ($uuid) = ($k =~ m/^metric:([^:]+):.*/);
 

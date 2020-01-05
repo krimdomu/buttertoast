@@ -7,6 +7,8 @@ package Buttertoast::Marmelade::Config;
 use YAML;
 use Moose;
 
+use UUID::Tiny ':std';
+
 use Buttertoast::Marmelade::Config::Nginx;
 use Buttertoast::Marmelade::Config::Redis;
 
@@ -26,7 +28,7 @@ has redis => (
     lazy => 1,
     default => sub {
         my $self = shift;
-        Buttertoast::Marmelade::Config::Redis->new(%{ $self->config_ref->{redis} });
+        Buttertoast::Marmelade::Config::Buttertoast::RedisProxy->new(%{ $self->config_ref->{redis} });
     },
 );
 
@@ -79,6 +81,25 @@ sub BUILD {
     if(-f "config/marmelade.yml") {
         my $ref = YAML::LoadFile("config/marmelade.yml");
         $self->_config_ref($ref);
+    }
+    elsif($ENV{MARMELADE_ENV_CONFIG} eq "1") {
+        my $config_ref = {
+            redis => {
+                host => ($ENV{MARMELADE_REDIS_HOST} // "localhost"),
+                port => ($ENV{MARMELADE_REDIS_PORT} // "6379"),
+            },
+            id => ($ENV{MARMELADE_ID} // create_uuid_as_string(UUID_V4)),
+            driver => ($ENV{MARMELADE_DRIVER} // "Nginx"),
+            nginx => {
+                config_path => ($ENV{MARMELADE_NGINX_CONFIG_PATH} // "/etc/nginx/conf.d/"),
+            }
+        };
+
+        unless($ENV{MARMELADE_ID}) {
+            print "[#] The marmelade ID is " . $config_ref->{id} . ". Please provide this ID during next startup via \$ENV{MARMELADE_ID}.\n";
+        }
+
+        $self->_config_ref($config_ref);
     }
     else {
         print "[!] no configuration file found for marmelade.\n";

@@ -13,13 +13,16 @@ sub execute {
     my $self = shift;
     my %data = (@_);
 
-    my ($out_p, $err_p, @result_p) = capture {
-        system "docker", "pull", $data{image} . ":" . $data{version};
-    };
+    print "[|]\t\tstarting docker container...\n";
 
-    if ($result_p[0] != 0) {
-        die "Error running docker pull command. Do you have permission to access docker?\n$out_p\n$err_p\n";
-    }
+    # my ($out_p, $err_p, @result_p) = capture {
+    #     system "docker", "pull", $data{image} . ":" . $data{version};
+    # };
+
+    # if ($result_p[0] != 0) {
+    #     print "[!]\t\tError running docker pull command. Do you have permission to access docker?\n$out_p\n$err_p\n";
+    #     die "Error running docker pull command. Do you have permission to access docker?\n$out_p\n$err_p\n";
+    # }
 
     my @env_arr = ();
     for my $env (keys $data{environment}->%*) {
@@ -34,6 +37,7 @@ sub execute {
     my $docker_id = $out;
 
     if ($result[0] != 0) {
+        print "[!]\t\tError running docker run command. Do you have permission to access docker?\n$out\n$err\n";
         die "Error running docker run command. Do you have permission to access docker?\n$out\n$err\n";
     }
 
@@ -42,6 +46,7 @@ sub execute {
     };
 
     if ($result_i[0] != 0) {
+        print "[!]\t\tError running docker inspect command. Do you have permission to access docker?\n$out\n$err\n";
         die "Error running docker inspect command. Do you have permission to access docker?\n$out\n$err\n";
     }
 

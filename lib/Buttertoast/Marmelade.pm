@@ -5,7 +5,7 @@
 package Buttertoast::Marmelade;
 
 use Moose;
-use Redis;
+use Redis::ClusterRider;
 use Proc::Fork;
 use JSON::XS;
 use UUID::Tiny ':std';
@@ -22,7 +22,7 @@ has redis_rw => (
     lazy => 1,
     default => sub {
         my $self = shift;
-        Redis->new(server => $self->config->redis->host  . ":" . $self->config->redis->port);
+        Buttertoast::RedisProxy->new(startup_nodes => $self->config->redis->host);
     }
 );
 
@@ -31,7 +31,7 @@ has redis_sub => (
     lazy => 1,
     default => sub {
         my $self = shift;
-        Redis->new(server => $self->config->redis->host  . ":" . $self->config->redis->port);
+        Buttertoast::RedisProxy->new(startup_nodes => $self->config->redis->host);
     }
 );
 
@@ -40,7 +40,7 @@ has redis_pub => (
     lazy => 1,
     default => sub {
         my $self = shift;
-        Redis->new(server => $self->config->redis->host  . ":" . $self->config->redis->port);
+        Buttertoast::RedisProxy->new(startup_nodes => $self->config->redis->host);
     }
 );
 

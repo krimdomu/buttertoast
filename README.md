@@ -54,3 +54,21 @@ This service is used on containers which are doing the ingress trafic handling. 
 
 Buttertoast is designed to be easily extended to support different container formats. Currently it only supports *Docker*.
 
+# Configuration
+
+## Marmelade
+
+You have 2 options to configure marmelade. One by a configuration file. The other via ENV variables.
+
+### Configuration File
+
+Right now, you have to place the configuration file inside your marmelade installation directory.
+
+### Environ Variables
+
+* MARMELADE_ENV_CONFIG : must be set to 1
+* MARMELADE_REDIS_HOST : defaults to localhost
+* MARMELADE_REDIS_PORT : defaults to 6379
+* MARMELADE_ID : defaults to create a random uuid. after first start it is better to save it and to provide the same id on next startup.
+* MARMELADE_DRIVER : which service it should handle, defaults to Nginx.
+* MARMELADE_NGINX_CONFIG_PATH : defaults to /etc/nginx/conf.d/

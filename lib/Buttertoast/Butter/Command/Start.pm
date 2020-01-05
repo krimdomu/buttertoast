@@ -26,10 +26,16 @@ sub calculate_placement {
     my $self = shift;
     my $id = shift;
 
+    print "[|]\t calculating placement.\n";
+
     my $count = $self->butter->redis_rw->get("service:$id:count");
     my @cluster_alive = $self->butter->redis_rw->keys("alive:*");
 
+    print Dumper \@cluster_alive;
+
     my @placement_order = $self->butter->placement->calculate;
+
+    print Dumper \@placement_order;
     
     return @placement_order;
 }
@@ -86,9 +92,9 @@ sub execute {
     my $name = $self->butter->redis_rw->get("service:$id:name");
     my $type = $self->butter->redis_rw->get("service:$id:type");
 
-    my $environment = decode_json($self->butter->redis_rw->get("service:$id:environment"));
-    my $vars = decode_json($self->butter->redis_rw->get("service:$id:vars"));
-    my $files = decode_json($self->butter->redis_rw->get("service:$id:files"));
+    my $environment = decode_json($self->butter->redis_rw->get("service:$id:environment") // '{}');
+    my $vars = decode_json($self->butter->redis_rw->get("service:$id:vars") // '{}');
+    my $files = decode_json($self->butter->redis_rw->get("service:$id:files" // '{}'));
 
     for my $file (keys $files->%*) {
         my $dir = dirname($file);

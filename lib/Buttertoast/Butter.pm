@@ -5,13 +5,13 @@
 package Buttertoast::Butter;
 
 use Moose;
-use Redis;
 use JSON::XS;
 use Data::Dumper;
 use Proc::Fork;
 use DateTime;
-use Rand::Urandom;
 use Module::Load;
+
+use Buttertoast::RedisProxy;
 
 use Buttertoast::Butter::Config;
 
@@ -37,7 +37,7 @@ has redis_rw => (
     lazy => 1,
     default => sub {
         my $self = shift;
-        Redis->new(server => $self->config->redis->host  . ":" . $self->config->redis->port);
+        Buttertoast::RedisProxy->new(config => $self->config);
     }
 );
 
@@ -46,7 +46,7 @@ has redis_sub => (
     lazy => 1,
     default => sub {
         my $self = shift;
-        Redis->new(server => $self->config->redis->host  . ":" . $self->config->redis->port);
+        Buttertoast::RedisProxy->new(config => $self->config);
     }
 );
 
@@ -55,7 +55,7 @@ has redis_pub => (
     lazy => 1,
     default => sub {
         my $self = shift;
-        Redis->new(server => $self->config->redis->host  . ":" . $self->config->redis->port);
+        Buttertoast::RedisProxy->new(config => $self->config);
     }
 );
 
@@ -131,8 +131,9 @@ sub who_is_master {
         node => $self->client_uuid,
     };
     for my $cl_m (@cluster_member_keys) {
+        my $o_cl_m = $cl_m;
         my ($uuid) = ($cl_m =~ m/^cluster:priority:(.*)$/);
-        my $value = $self->redis_rw->get($cl_m);
+        my $value = $self->redis_rw->get($o_cl_m);
         if($value > $master->{prio}) {
             $master->{prio} = $value;
             $master->{node} = $uuid;
@@ -148,13 +149,20 @@ sub dispatch_cluster_command {
 
     if($command->{on_node} eq $self->client_uuid) {
         print "[|] command is for me...\n";
+        eval {
 
-        my $class_to_call = "Buttertoast::Butter::Command::" . $command->{command};
-        my $mod = $class_to_call->new(butter => $self);
+            my $class_to_call = "Buttertoast::Butter::Command::" . $command->{command};
+            my $mod = $class_to_call->new(butter => $self);
 
-        $mod->execute($command->{count}, @{$command->{arguments}});
+            $mod->execute($command->{count}, @{$command->{arguments}});
 
-        print "[+] done.\n";
+            print "[+] done.\n";
+
+            1;
+        } or do {
+            print "[!] $@\n";
+            die $@;
+        };
     }
 }
 
@@ -172,12 +180,15 @@ sub dispatch_communication_command {
         my $ret = {};
 
         if($mod->need_placement) {
+            print "[|] this command needs placement\n";
             my $placement = $self->client_uuid;
             my @placement = $mod->calculate_placement(@{$command->{arguments}});
 
             my @cluster_commands = $mod->generate_cluster_command(\@placement, @{$command->{arguments}});
-
+            print "[|] sending command to: " . $_->{on_node} . "\n" for @cluster_commands;
             $self->redis_pub->publish("vessel_cluster_comm", encode_json($_)) for @cluster_commands;
+
+            print "[+] commands send.\n";
 
             $ret = {
                 rpc => "1.0",
@@ -188,6 +199,7 @@ sub dispatch_communication_command {
             };
         }
         else {
+            print "[+] command doesn't need placement.\n";
             $ret = {
                 rpc => "1.0",
                 id => $command->{id},

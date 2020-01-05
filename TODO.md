@@ -7,5 +7,7 @@
 * a configuration file
 * api server
 * config classes refactor
+* add proper logging
 * and many more
+
 
