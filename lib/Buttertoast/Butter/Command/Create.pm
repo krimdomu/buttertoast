@@ -12,9 +12,9 @@ use UUID::Tiny ':std';
 
 extends qw/Buttertoast::Butter::Command/;
 
-sub need_placement { 0; }
+override on_master => sub { 1; };
 
-sub execute {
+sub execute_master {
     my $self = shift;
     my $args = shift;
 
@@ -40,6 +40,7 @@ sub execute {
     $self->butter->redis_rw->set("$key_base:environment", encode_json($args->{environment} // {}));
     $self->butter->redis_rw->set("$key_base:vars", encode_json($args->{vars} // {}));
     $self->butter->redis_rw->set("$key_base:files", encode_json($args->{files} // {}));
+    $self->butter->redis_rw->set("$key_base:volumes", encode_json($args->{volumes} // {}));
 
     $self->butter->redis_rw->set("$key_base:type", $args->{type} // "unknown");
 

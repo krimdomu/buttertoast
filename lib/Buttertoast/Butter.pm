@@ -18,6 +18,9 @@ use Buttertoast::Butter::Config;
 use Buttertoast::Butter::Command::List;
 use Buttertoast::Butter::Command::Create;
 use Buttertoast::Butter::Command::Start;
+use Buttertoast::Butter::Command::Remove;
+use Buttertoast::Butter::Command::Stop;
+use Buttertoast::Butter::Command::Resume;
 
 use Buttertoast::Butter::Metric::Memory;
 
@@ -125,6 +128,8 @@ sub get_file {
 sub who_is_master {
     my $self = shift;
 
+    my $prefix = $self->config->redis->prefix;
+
     my @cluster_member_keys = $self->redis_rw->keys("cluster:priority:*");
     my $master = {
         prio => $self->priority_level,
@@ -132,7 +137,7 @@ sub who_is_master {
     };
     for my $cl_m (@cluster_member_keys) {
         my $o_cl_m = $cl_m;
-        my ($uuid) = ($cl_m =~ m/^cluster:priority:(.*)$/);
+        my ($uuid) = ($cl_m =~ m/^\Q$prefix\Ecluster:priority:(.*)$/);
         my $value = $self->redis_rw->get($o_cl_m);
         if($value > $master->{prio}) {
             $master->{prio} = $value;
@@ -154,7 +159,7 @@ sub dispatch_cluster_command {
             my $class_to_call = "Buttertoast::Butter::Command::" . $command->{command};
             my $mod = $class_to_call->new(butter => $self);
 
-            $mod->execute($command->{count}, @{$command->{arguments}});
+            $mod->execute_node($command->{count}, @{$command->{arguments}});
 
             print "[+] done.\n";
 
@@ -169,15 +174,15 @@ sub dispatch_cluster_command {
 sub dispatch_communication_command {
     my ($self, $command) = @_;
     
-    my $master = $self->who_is_master;
+    my $is_master = $self->who_is_master eq $self->client_uuid;
 
-    if($master eq $self->client_uuid) {
+    my $class_to_call = "Buttertoast::Butter::Command::" . $command->{command};
+    my $mod = $class_to_call->new(butter => $self);
+
+    my $ret = {};
+
+    if($is_master && $mod->on_master) {
         print "[+] master is me :)\n";
-
-        my $class_to_call = "Buttertoast::Butter::Command::" . $command->{command};
-        my $mod = $class_to_call->new(butter => $self);
-
-        my $ret = {};
 
         if($mod->need_placement) {
             print "[|] this command needs placement\n";
@@ -203,13 +208,23 @@ sub dispatch_communication_command {
             $ret = {
                 rpc => "1.0",
                 id => $command->{id},
-                return => $mod->execute(@{$command->{arguments}}),
+                return => $mod->execute_master(@{$command->{arguments}}),
             };
         }
-
-
         $self->redis_pub->publish("vessel_command_comm__ret_" . $ret->{id}, encode_json($ret));
     }
+    
+    if($mod->on_all) {
+        # need to run on all nodes
+        print "[+] command should run on all nodes.\n";
+        $ret = {
+            rpc => "1.0",
+            id => $command->{id},
+            return => $mod->execute_all(@{$command->{arguments}}),
+        };
+        $self->redis_pub->publish("vessel_command_comm__ret_" . $ret->{id}, encode_json($ret));
+    }
+
 }
 
 sub send_event {
@@ -218,6 +233,32 @@ sub send_event {
 
     $self->redis_pub->publish("vessel_events", $event->to_string);
     $self->inbound_traffic_mgr->refresh;
+}
+
+sub restart_crashed {
+    my $self = shift;
+    my $prefix = $self->config->redis->prefix;
+
+    while(1) {
+        print "[+] Checking for dead processes\n";
+        my @crashed = grep { $self->redis_rw->get($_) eq "false" } $self->redis_rw->keys("service:*:*:alive");
+        for my $crashed_key (@crashed) {
+            my ($service_uuid, $idx) = ($crashed_key =~ m/^\Q$prefix\Eservice:([^:]+):([^:]+):.*$/);
+            my $on_node = $self->redis_rw->get("service:$service_uuid:$idx:butter");
+
+            if($on_node eq $self->client_uuid) {
+                print "[|] Restarting $service_uuid\n";
+
+                my $start_o = Buttertoast::Butter::Command::Start->new(butter => $self);
+                $start_o->execute_node($idx, $service_uuid);
+            }
+
+
+        }
+        print "[+] done checking for dead processes\n";
+
+        sleep 15;
+    }
 }
 
 sub collect_metrics {
@@ -307,6 +348,12 @@ sub start {
     run_fork {
         child {
             $self->heartbeat;
+        }
+    };
+
+    run_fork {
+        child {
+            $self->restart_crashed;
         }
     };
 

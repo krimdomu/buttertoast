@@ -30,25 +30,33 @@ sub generate_configuration {
     my @container_keys = $self->butter->redis_rw->keys("service:*:*:butter");
     
     my @this_node = grep { $self->butter->redis_rw->get($_) eq $self->butter->client_uuid } @container_keys;
-    my $services = {
-    };
+
+    my $services = {};
+
+    my $prefix = $self->butter->config->redis->prefix;
+
     for my $c (@this_node) {
-        my ($service_uuid, $container_idx) = ($c =~ m/^service:([^:]+):([^:]+):/);
+        my ($service_uuid, $container_idx) = ($c =~ m/^\Q$prefix\Eservice:([^:]+):([^:]+):/);
         my $s_name = $self->butter->redis_rw->get("service:$service_uuid:name");
+        my $alive = $self->butter->redis_rw->get("service:$service_uuid:$container_idx:alive");
 
-        unless ($services->{$s_name}->{backends}) {
-            $services->{$s_name} = {
-                backends => [],
+        if($alive ne "false") {
+
+            unless ($services->{$service_uuid}->{backends}) {
+                $services->{$service_uuid} = {
+                    backends => [],
+                    name => $s_name,
+                };
+            }
+            $services->{$service_uuid}->{public_port} = $self->butter->redis_rw->get("service:$service_uuid:public_port");
+
+            push $services->{$service_uuid}->{backends}->@*, {
+                ip => $self->butter->redis_rw->get("service:$service_uuid:$container_idx:container_ip"),
+                port => $self->butter->redis_rw->get("service:$service_uuid:application_port"),
             };
+
         }
-        $services->{$s_name}->{public_port} = $self->butter->redis_rw->get("service:$service_uuid:public_port");
-
-        $services->{$s_name}->{backends}->[$container_idx] = {
-            ip => $self->butter->redis_rw->get("service:$service_uuid:$container_idx:container_ip"),
-            port => $self->butter->redis_rw->get("service:$service_uuid:application_port"),
-        };
     }
-
     my $config_file_content = $mt->render($self->butter->get_file("haproxy/haproxy.conf.ep"), {services => $services});
 
     open(my $fh, ">", $self->butter->config->haproxy->config_file) or die($!);

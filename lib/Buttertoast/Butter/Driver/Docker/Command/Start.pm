@@ -28,9 +28,19 @@ sub execute {
     for my $env (keys $data{environment}->%*) {
         push @env_arr, "-e", "$env=" . $data{environment}->{$env};
     }
+    
+    my @labels;
+    push @labels, "-l", "butter.owner=true";
+    push @labels, "-l", "butter.id=".$data{name};
+    push @labels, "-l", "butter.count=".$data{count};
+
+    my @volumes;
+    for my $vol (keys $data{volumes}->%*) {
+        push @volumes, "-v", "$vol:" . $data{volumes}->{$vol};
+    }
 
     my ($out, $err, @result) = capture {
-        system "docker", "run", "--name", "vessel__$data{name}-$data{count}", @env_arr, "-d", $data{image} . ":" . $data{version};
+        system "docker", "run", "--name", "vessel__$data{name}-$data{count}", @env_arr, @volumes, @labels, "-d", $data{image} . ":" . $data{version};
     };
 
     chomp $out;

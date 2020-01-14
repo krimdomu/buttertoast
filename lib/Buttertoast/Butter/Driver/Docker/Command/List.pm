@@ -13,7 +13,7 @@ sub execute {
     my $self = shift;
 
     my ($out, $err, @result) = capture {
-        system "docker", "ps", "-a", "--format", "{{json . }}";
+        system "docker", "ps", "-a", "--format", "{{json . }}", "--filter", "label=butter.owner=true";
     };
 
     if ($result[0] != 0) {
@@ -24,16 +24,13 @@ sub execute {
     for my $line (split(/\n/, $out)) {
         my $ref = decode_json $line;
 
-        # only retun containers managed by butter
-        if($ref->{Labels} =~ m/butter\.owner=true/) {
-            push @data, {
-                id => $ref->{ID},
-                image => $ref->{Image},
-                labels => $ref->{Labels},
-                name => $ref->{Names},
-                status => $ref->{Status}
-            };
-        }
+        push @data, {
+            id => $ref->{ID},
+            image => $ref->{Image},
+            labels => $ref->{Labels},
+            name => $ref->{Names},
+            status => $ref->{Status}
+        };
     }
 
     return \@data;

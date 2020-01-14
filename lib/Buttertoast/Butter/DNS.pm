@@ -14,6 +14,9 @@ has butter => (
 sub dispatch_query {
     my $self = shift;
     my ( $qname, $qclass, $qtype, $peerhost, $query, $conn ) = @_;
+
+    my $prefix = $self->butter->config->redis->prefix;
+
     my ( $rcode, @ans, @auth, @add );
 
     my ($service_name, $dom) = ($qname =~ m/^([^\.]+)\.(.*)$/);
@@ -23,7 +26,7 @@ sub dispatch_query {
     my @service_keys = grep { $self->butter->redis_rw->get($_) eq $service_name } $self->butter->redis_rw->keys("service:*:name");
 
     if (@service_keys) {
-        my ($uuid) = ($service_keys[0] =~ m/^[^:]+:([^:]+):.*$/);
+        my ($uuid) = ($service_keys[0] =~ m/^\Q$prefix\E[^:]+:([^:]+):.*$/);
 
         my $key_base = "service:$uuid";
         my $name_key = "$key_base:name";

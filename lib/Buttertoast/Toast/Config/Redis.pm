@@ -1,4 +1,4 @@
-package Buttertoast::Butter::Config::Redis;
+package Buttertoast::Toast::Config::Redis;
 
 use Moose;
 

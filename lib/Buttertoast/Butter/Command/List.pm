@@ -5,21 +5,23 @@
 package Buttertoast::Butter::Command::List;
 
 use Moose;
+use Data::Dumper;
 use Module::Load;
 
 extends qw/Buttertoast::Butter::Command/;
 
-sub need_placement { 0; }
+override on_master => sub { 1; };
 
-sub execute {
+sub execute_master {
     my $self = shift;
 
-    my @keys = $self->butter->redis_rw->keys("service:*:name");
+    my $prefix = $self->butter->config->redis->prefix;
 
+    my @keys = $self->butter->redis_rw->keys("service:*:name");
     my @services = ();
 
     for my $name_key (@keys) {
-        my ($uuid) = ($name_key =~ m/^[^:]+:([^:]+):.*$/);
+        my ($uuid) = ($name_key =~ m/^\Q$prefix\E[^:]+:([^:]+):.*$/);
         my $base_key = "service:$uuid";
 
         push @services, {

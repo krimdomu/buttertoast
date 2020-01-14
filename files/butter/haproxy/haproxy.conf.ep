@@ -17,14 +17,14 @@ defaults
 #     stats auth admin:admin@rserve
 
 % for my $service (keys %{ $services }) {
-frontend <%= $service %>_frontend
+frontend <%= $services->{$service}->{name} %>_frontend
     bind *:<%= $services->{$service}->{public_port} %>
     mode tcp
     option tcplog
     timeout client  1m
-    default_backend <%= $service %>_backend
+    default_backend <%= $services->{$service}->{name} %>_backend
 
-backend <%= $service %>_backend
+backend <%= $services->{$service}->{name} %>_backend
     mode tcp
     option redispatch
     log global
@@ -34,6 +34,6 @@ backend <%= $service %>_backend
     % my $i = 0;
     % for my $backend ( @{ $services->{$service}->{backends} } ) {
     % $i += 1;
-    server b_<%= $service %>_<%= $i %> <%= $backend->{ip} %>:<%= $backend->{port} %>
+    server b_<%= $services->{$service}->{name} %>_<%= $i %> <%= $backend->{ip} %>:<%= $backend->{port} %>
     % }
 % }

@@ -20,7 +20,8 @@ use Buttertoast::Butter::Event::Start;
 
 extends qw/Buttertoast::Butter::Command/;
 
-sub need_placement { 1; }
+override need_placement => sub { 1; };
+override on_master => sub { 1; };
 
 sub calculate_placement {
     my $self = shift;
@@ -69,7 +70,7 @@ sub generate_cluster_command {
     return @cluster_commands;
 }
 
-sub execute {
+sub execute_node {
     my $self = shift;
     my $count = shift;
     my $id = shift;
@@ -79,6 +80,9 @@ sub execute {
     my $driver = $self->butter->driver;
     my $mod_to_load = "Buttertoast::Butter::Driver::${driver}::Command::Start";
     load $mod_to_load;
+
+    my $list_mod_to_load = "Buttertoast::Butter::Driver::${driver}::Command::List";
+    load $list_mod_to_load;
 
     my $image = $self->butter->redis_rw->get("service:$id:image");
     my $version = $self->butter->redis_rw->get("service:$id:version");
@@ -93,6 +97,7 @@ sub execute {
     my $type = $self->butter->redis_rw->get("service:$id:type");
 
     my $environment = decode_json($self->butter->redis_rw->get("service:$id:environment") // '{}');
+    my $volumes = decode_json($self->butter->redis_rw->get("service:$id:volumes") // '{}');
     my $vars = decode_json($self->butter->redis_rw->get("service:$id:vars") // '{}');
     my $files = decode_json($self->butter->redis_rw->get("service:$id:files" // '{}'));
 
@@ -130,9 +135,41 @@ sub execute {
         $more_data{virtual_host_aliases} = decode_json($self->butter->redis_rw->get("service:$id:webservice:virtual_host_aliases"));
     }
 
-    my $mod = $mod_to_load->new(butter => $self->butter);
+    my $list_o = $list_mod_to_load->new(butter => $self->butter);
+    my @list = $list_o->execute->@*;
+    my $resumed = 0;
 
-    my $mod_data = $mod->execute(image => $image, version => $version, name => $id, count => $count, environment => $environment);
+    my $mod_data = {};
+
+    for my $all_p (@list) {
+        if($all_p->{labels} =~ m/butter\.id=\Q$id\E/ && $all_p->{labels} =~ m/butter\.count=\Q$count\E/) {
+            # there is a previous container, so just resume.
+            print "[+] resuming a previous stopped container\n";
+            my $resume_mod_to_load = "Buttertoast::Butter::Driver::${driver}::Command::Resume";
+            load $resume_mod_to_load;
+
+            my $resume_o = $resume_mod_to_load->new(butter => $self->butter);
+            $mod_data = $resume_o->execute(id => $all_p->{id});
+
+            $resumed = 1;
+            last;
+        }
+    }
+
+
+    if(!$resumed) {
+        my $mod = $mod_to_load->new(butter => $self->butter);
+
+        $mod_data = $mod->execute(
+            image => $image,
+            version => $version,
+            name => $id,
+            count => $count,
+            environment => $environment,
+            volumes => $volumes,
+        );
+    }
+
     $mod_data = {
         id => $id,
         public => $public,
@@ -150,6 +187,7 @@ sub execute {
     $self->butter->redis_rw->set("service:$id:$count:container_ip", $mod_data->{container_ip});
     $self->butter->redis_rw->set("service:$id:$count:butter", $self->butter->client_uuid);
     $self->butter->redis_rw->set("service:$id:$count:alive", "true");
+    $self->butter->redis_rw->set("service:$id:enabled", "true");
 
     $self->butter->send_event(Buttertoast::Butter::Event::Start->new(payload => $mod_data));
 }

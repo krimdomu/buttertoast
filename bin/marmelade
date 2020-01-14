@@ -8,5 +8,7 @@ use lib $FindBin::Bin . '/../lib';
 
 use Buttertoast::Marmelade;
 
+$|=1;
+
 my $marmelade = Buttertoast::Marmelade->new;
 $marmelade->start;

@@ -6,7 +6,7 @@ RUN apt-get update && \
         libuuid-tiny-perl libredis-perl libyaml-perl && \
     apt-get clean
 
-RUN mkdir /butter
-COPY . /butter
+RUN mkdir /buttertoast
+COPY . /buttertoast
 
 
